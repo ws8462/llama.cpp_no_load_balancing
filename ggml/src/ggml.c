@@ -16901,6 +16901,8 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
                 GGML_ASSERT(false);
             } break;
     }
+    clock_t end_time = clock();
+    double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
     printf("=======================================\n");
     printf("%s\n", tensor->name);
     printf("%s\n", ggml_op_to_string(tensor->op));

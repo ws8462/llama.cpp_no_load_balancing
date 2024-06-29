@@ -16493,7 +16493,7 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     if (tensor->op == GGML_OP_NONE || ggml_is_empty(tensor)) {
         return;
     }
-
+    clock_t start_time = clock();
     switch (tensor->op) {
         case GGML_OP_DUP:
             {
@@ -16819,6 +16819,12 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
                 GGML_ASSERT(false);
             } break;
     }
+    printf("=======================================\n");
+    printf("%s\n", tensor->name);
+    printf("%s\n", ggml_op_to_string(tensor->op));
+    printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
+    printf("Execution time: %f ms\n", duration);
+    printf("=======================================\n\n");
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -10096,7 +10096,7 @@ static void ggml_compute_forward_mul_f32(
 static void ggml_compute_forward_mul(
         const struct ggml_compute_params * params,
         struct ggml_tensor * dst) {
-    
+
     const struct ggml_tensor * src0 = dst->src[0];
     const struct ggml_tensor * src1 = dst->src[1];
 
@@ -12120,47 +12120,12 @@ static void ggml_compute_forward_mul_mat_one_chunk(
 static void ggml_compute_forward_mul_mat(
         const struct ggml_compute_params * params,
               struct ggml_tensor * dst) {
+
     const struct ggml_tensor * src0 = dst->src[0];
     const struct ggml_tensor * src1 = dst->src[1];
 
-
-    clock_t start_time = clock();
-
-    // 이곳에서 matmul 관련 연산이 이루어지게 된다.
-    // src1은 activation tensor
-    // src0는 weight parameter tensor이다.
-    // src1 * (src0)^T의 형태로 곱셈이 이루어지게 된다.
-
-    // ne00 = src0의 첫번째 dimension (가장 안쪽 차원이다 i.e. feauture)
-    // ne01 = src0의 두번째 dimension
-    // ne02 = src0의 세번째 dimension
-
-    // nb 값은 연산을 진행할 때 memory jump를 위한 stride 값이다.
-    // nb00 = src0의 element 하나당 bytes (e.g. fp16인 경우 nb00는 2이다.)
-    // nb01 = nb00 * ne00
-    // nb02 = nb01 * ne01
-
-    // ne10 = src1의 첫번째 dimension (가장 안쪽 차원이다 i.e. feature)
-    // ne11 = src1의 두번째 dimension
-    // ne12 = src1의 세번째 dimension
-
-    // printf("\n=======================================\n");
-    // printf("src0 = ");
-    // for (int i=0; i<4; ++i){
-    //     printf("%ld ", src0->ne[i]);
-    // }
-    // printf("\nscr0's ggml_type = %d", src0->type);
-    // printf("\n---------------------------------------\n");
-    // printf("src1 = ");
-    // for (int i=0; i<4; ++i){
-    //     printf("%ld ", src1->ne[i]);
-    // }
-    // printf("\nscr1's ggml_type = %d\n", src1->type);
-    // printf("---------------------------------------\n");
     GGML_TENSOR_BINARY_OP_LOCALS
 
-    // ith : thread id
-    // nth : # of thread
     const int ith = params->ith;
     const int nth = params->nth;
 
@@ -12190,17 +12155,11 @@ static void ggml_compute_forward_mul_mat(
 
 #if GGML_USE_LLAMAFILE
     // broadcast factors
-
-    // inference 진행할 때 3차원, 4차원의 길이는 1이다/
-    // 따라서 r2, r3 둘 다 1이다.
     const int64_t r2 = ne12 / ne02;
     const int64_t r3 = ne13 / ne03;
-    // printf("ne12=%ld, ne02=%ld, r2=%ld\n", ne12, ne02, r2);
-    // printf("ne13=%ld, ne03=%ld, r3=%ld\n", ne13, ne03, r3);
-    // printf("---------------------------------------\n");
+
     const bool src1_cont = ggml_is_contiguous(src1);
 
-    // 여기에서 1차 matmul 시도가 일어나는 것 같다.
     if (src1_cont) {
         for (int64_t i13 = 0; i13 < ne13; i13++)
             for (int64_t i12 = 0; i12 < ne12; i12++)
@@ -12215,78 +12174,25 @@ static void ggml_compute_forward_mul_mat(
                                      src0->type,
                                      src1->type,
                                      dst->type))
-                    // 만약 matmul을 시도하다가 error가 발생하면, src1의 type을 vec_dot_type으로 바꿔주는 code를 찾아가게 된다. (바로 아래)
                     goto UseGgmlGemm1;
-        clock_t end_time = clock();
-        double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
-        // #pragma omp critical
-        // {
-        // printf("=======================================\n");
-        // printf("%s\n", dst->name);
-        // printf("%dth thread among %d threads\n", ith, nth);
-        // printf("Execution time: %f ms\n", duration);
-        // printf("=======================================\n\n");
-        // }
-        // return;
+        return;
     }
 UseGgmlGemm1:;
 #endif
-    // 아마 여기에서 activation tensor(scr1)의 type을 weight parameter tensor(scr0)의 type으로 맞춰주는 것 같다.
+
     if (src1->type != vec_dot_type) {
         char * wdata = params->wdata;
-        // printf("vec_dot_type = %ld\n", vec_dot_type);
 
-        // printf("ne00 = %ld\n", ne00);
-        // printf("ne01 = %ld\n", ne01);
-        // printf("ne02 = %ld\n", ne02);
-        // printf("ne03 = %ld\n", ne03);
-        // printf("nb00 = %ld\n", nb00);
-        // printf("nb01 = %ld\n", nb01);
-        // printf("nb02 = %ld\n", nb02);
-        // printf("nb03 = %ld\n", nb03);
-        // printf("---------------------------------------\n");
-        // printf("ne10 = %ld\n", ne10);
-        // printf("ne11 = %ld\n", ne11);
-        // printf("ne12 = %ld\n", ne12);
-        // printf("ne13 = %ld\n", ne13);
-        // printf("nb10 = %ld\n", nb10);
-        // printf("nb11 = %ld\n", nb11);
-        // printf("nb12 = %ld\n", nb12);
-        // printf("nb13 = %ld\n", nb13);
-        // printf("---------------------------------------\n");
-
-        // nbw1은 ne10(e.g., 13824)개의 tensor가 vec_dot_type(e.g. q8_0)으로 바뀔 때, 
-        // 한 번에 점프해야 하는 memory stride값을 나타낸 것이다.
-        // q8_0은 32개의 int8 element 마다 한 개의 fp32 scale이 들어있다.
-        // 따라서 ne10이 13824인 경우, 13824*1 + 13824/32*2 = 14688bytes 만큼의 stride가 발생한다.
-        // nbw2, nbw3는 nbw1에 따라서 변화하는 값이다.
-        // 즉 nbw1, nbw2, nbw3는 새로운 q8_0 tensor를 만들기 위한 stride 값들로 볼 수 있다.
         const size_t nbw1 = ggml_row_size(vec_dot_type, ne10);
         const size_t nbw2 = nbw1*ne11;
         const size_t nbw3 = nbw2*ne12;
-        // printf("nbw1 = %ld\n", nbw1);
-        // printf("nbw2 = %ld\n", nbw2);
-        // printf("nbw3 = %ld\n", nbw3);
-        // printf("nth = %ld\n", nth);
-        // printf("ith = %ld\n", ith);
+
         assert(params->wsize >= ne13*nbw3);
         GGML_ASSERT(src1->type == GGML_TYPE_F32);
-
-        // row-major에서 특정 tensor의 마지막 차원을 조회하기 위한 for 문
-        // src->data : 특정 tensor의 메모리 시작 주소
-        // i13*nb13 : 3번째 차원의 index
-        // i12*nb12 : 2번째 차원의 index
-        // i11*nb11 : 1번째 차원의 index
-
-        // 즉 아래의 for문 src1의 각 행을 (feautrue tensor)를 하나씩 from_float_to_vec_dot 함수로 넘겨
-        // q8_0으로 quantization을 진행한다.
-        // 마지막 ne10은 각 행의 element개수이다.
-        // 나의 추측인데 wdata에는 src1의 quantizaiton된 값이 들어가 있는 것 같다.
 
         for (int64_t i13 = 0; i13 < ne13; ++i13) {
             for (int64_t i12 = 0; i12 < ne12; ++i12) {
                 for (int64_t i11 = ith; i11 < ne11; i11 += nth) {
-                    // thread마다 각 행을 공평하게 나눠서 갖는다.
                     from_float_to_vec_dot((float *)((char *) src1->data + i13*nb13 + i12*nb12 + i11*nb11),
                                           (void *)               (wdata + i13*nbw3 + i12*nbw2 + i11*nbw1),
                                            ne10);
@@ -12304,79 +12210,24 @@ UseGgmlGemm1:;
 
 #if GGML_USE_LLAMAFILE
     if (src1->type != vec_dot_type) {
-        // 여기서 아까 실패한 matmul 연산을 진행하는 것 같다.
-        // sr1은 src0(weight)과 type이 다르기 때문에 
-        // sr1 대신에 아까 만들어 놓았던 wdata를 대신 사용하게 된다.
         const void* wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
         const size_t row_size = ggml_row_size(vec_dot_type, ne10);
 
-        // row size는 sr1 (activation tensor - f16)가 q8_0로 변환될 때 row의 size를 변환시켜주는 값이다
-        // e.g. ne10 = 5120 -> 5120 * 1 + 5120/32*2 = 5440 bytes
-        // e.g. ne10 = 13824 -> 13824 * 1 + 13824/32*2 = 14688 bytes
-        //printf("row_size of src1 = %ld\n", ggml_row_size(vec_dot_type, ne10));
-
-        // ggml_type_size(src0->type) : src0의 type이 q8_0이면 32개의 int + 1개의 float => 34이다.
-        // ggml_type_size(src0->type) : src0의 type이 fp16이면 => 2이다.
-        // ggml_blck_size는 각 ggml_type이 이루고있는 element의 개수이다. (e.g. q8_0은 32, fp16은 1이다)
-
         for (int64_t i13 = 0; i13 < ne13; i13++)
-            for (int64_t i12 = 0; i12 < ne12; i12++) {
-                // printf("======sgemm inputs======\n");
-                // printf("ne01 = %ld, ne11 = %ld, ne00 = %ld, ggml_blck_size = %ld\n", ne01, ne11, ne00, ggml_blck_size(src0->type));
-                // printf("nb01 = %ld, ggml_type_size of src0 = %ld\n", nb01, ggml_type_size(src0->type));
-                // printf("nb01/ggml_type_size(src0->type) = %ld\n", nb01/ggml_type_size(src0->type));
-                // printf("row_size/ggml_type_size(vec_dot_type) = %ld\n", row_size/ggml_type_size(vec_dot_type));
-                // printf("---------------------------------------\n");
-                // printf("dst->type = %ld\n", dst->type);
-                // printf("ne0 = %ld\n", ne0);
-                // printf("ne1 = %ld\n", ne1);
-                // printf("ne2 = %ld\n", ne2);
-                // printf("ne3 = %ld\n", ne3);
-                // printf("nb0 = %ld\n", nb0);
-                // printf("nb1 = %ld\n", nb1);
-                // printf("nb2 = %ld\n", nb2);
-                // printf("nb3 = %ld\n", nb3);
-                // printf("---------------------------------------\n");
-                // printf("nb01 = %ld, ggml_type_size(src0->type) = %ld\n", nb01, ggml_type_size(src0->type));
-                // printf("nb01/ggml_type_size(src0->type) = %ld\n", nb01/ggml_type_size(src0->type));
-                // printf("row_size = %ld, ggml_type_size(src0->type) = %ld\n", row_size, ggml_type_size(vec_dot_type));
-                // printf("row_size/ggml_type_size(vec_dot_type) = %ld\n", row_size/ggml_type_size(vec_dot_type));
-                // printf("nb1 = %ld, ggml_type_size(dst->type) = %ld\n", nb1, ggml_type_size(dst->type));
-                // printf("nb1/ggml_type_size(dst->type)= %ld\n", nb1/ggml_type_size(dst->type));
-                // llamafile_sgemm이라는 함수는 sgemm.cpp 파일 안에 존재한다.
-
-                // 행렬 곱셈 결과는 [ne01, ne11]의 shape을 갖고 있다.
-                // src0, src1(wdata)의 각 columns의 개수는 ne00 / blocksize이다 (ne00과 ne10은 같다 // e.g., 13824/32) 
-                // 즉 quantization block struct를 하나의 element로 갖는다 생각하고 행렬을 만듦
-                // 연산은 해당 quantization block struct 끼리 연산을 하고 float array로 만들어줌.
-                
-                                                                                                
-                if (!llamafile_sgemm(ne01, ne11, ne00/ggml_blck_size(src0->type),               // m, n, k // OUPTUT tensor shape = [m,n]
-                                     (const char *)src0->data + i12/r2*nb02 + i13/r3*nb03,      // WEIGHT tensor (A)
-                                     nb01/ggml_type_size(src0->type),                           // WEIGHT tensor's row stride
-                                     (const char *)wdata + (i12*ne11 + i13*ne12*ne11)*row_size, // ACTIVATION tensor (B)
-                                     row_size/ggml_type_size(vec_dot_type),                     // ACTIVATION tensor's row stride
-                                     (char *)dst->data + i12*nb2 + i13*nb3,                     // OUTPUT tensor (C)
-                                     nb1/ggml_type_size(dst->type),                             // OUTPUT tensor's row stride
+            for (int64_t i12 = 0; i12 < ne12; i12++)
+                if (!llamafile_sgemm(ne01, ne11, ne00/ggml_blck_size(src0->type),
+                                     (const char *)src0->data + i12/r2*nb02 + i13/r3*nb03,
+                                     nb01/ggml_type_size(src0->type),
+                                     (const char *)wdata + (i12*ne11 + i13*ne12*ne11)*row_size,
+                                     row_size/ggml_type_size(vec_dot_type),
+                                     (char *)dst->data + i12*nb2 + i13*nb3,
+                                     nb1/ggml_type_size(dst->type),
                                      ith, nth,
-                                     src0->type,                                                // WEIGHT tensor's type
-                                     vec_dot_type,                                              // ACTIVATION tensor's type
-                                     dst->type))                                                // OUTPUT tensor's type
+                                     src0->type,
+                                     vec_dot_type,
+                                     dst->type))
                     goto UseGgmlGemm2;
-            }
-
-        // clock_t end_time = clock();
-        // double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
-        // #pragma omp critical
-        // {        
-        // printf("=======================================\n");
-        // printf("%s\n", dst->name);
-        // printf("%dth thread among %d threads\n", ith, nth);
-        // printf("Execution time: %f ms\n", duration);
-        // printf("=======================================\n\n");
-        // }
-        // // matmul 연산은 여기서 끝, 아래 코드는 llamafil_sgemm 함수가 작동을 못했을 경우 내려간다.
-        // return;
+        return;
     }
 UseGgmlGemm2:;
 #endif
@@ -12443,17 +12294,6 @@ UseGgmlGemm2:;
 
         current_chunk = atomic_fetch_add(&params->shared->current_chunk, 1);
     }
-
-    clock_t end_time = clock();
-    double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
-    // #pragma omp critical
-    // {
-    // printf("=======================================\n");
-    // printf("%s\n", dst->name);
-    // printf("%dth thread among %d threads\n", ith, nth);
-    // printf("Execution time: %f ms\n", duration);
-    // printf("=======================================\n\n");
-    // }
 }
 
 // ggml_compute_forward_mul_mat_id
@@ -16647,96 +16487,13 @@ static void ggml_compute_forward_cross_entropy_loss_back(
 
 /////////////////////////////////
 
-const char* ggml_op_to_string(enum ggml_op op) {
-    switch (op) {
-        case GGML_OP_NONE: return "GGML_OP_NONE";
-        case GGML_OP_DUP: return "GGML_OP_DUP";
-        case GGML_OP_ADD: return "GGML_OP_ADD";
-        case GGML_OP_ADD1: return "GGML_OP_ADD1";
-        case GGML_OP_ACC: return "GGML_OP_ACC";
-        case GGML_OP_SUB: return "GGML_OP_SUB";
-        case GGML_OP_MUL: return "GGML_OP_MUL";
-        case GGML_OP_DIV: return "GGML_OP_DIV";
-        case GGML_OP_SQR: return "GGML_OP_SQR";
-        case GGML_OP_SQRT: return "GGML_OP_SQRT";
-        case GGML_OP_LOG: return "GGML_OP_LOG";
-        case GGML_OP_SUM: return "GGML_OP_SUM";
-        case GGML_OP_SUM_ROWS: return "GGML_OP_SUM_ROWS";
-        case GGML_OP_MEAN: return "GGML_OP_MEAN";
-        case GGML_OP_ARGMAX: return "GGML_OP_ARGMAX";
-        case GGML_OP_REPEAT: return "GGML_OP_REPEAT";
-        case GGML_OP_REPEAT_BACK: return "GGML_OP_REPEAT_BACK";
-        case GGML_OP_CONCAT: return "GGML_OP_CONCAT";
-        case GGML_OP_SILU_BACK: return "GGML_OP_SILU_BACK";
-        case GGML_OP_NORM: return "GGML_OP_NORM";
-        case GGML_OP_RMS_NORM: return "GGML_OP_RMS_NORM";
-        case GGML_OP_RMS_NORM_BACK: return "GGML_OP_RMS_NORM_BACK";
-        case GGML_OP_GROUP_NORM: return "GGML_OP_GROUP_NORM";
-        case GGML_OP_MUL_MAT: return "GGML_OP_MUL_MAT";
-        case GGML_OP_MUL_MAT_ID: return "GGML_OP_MUL_MAT_ID";
-        case GGML_OP_OUT_PROD: return "GGML_OP_OUT_PROD";
-        case GGML_OP_SCALE: return "GGML_OP_SCALE";
-        case GGML_OP_SET: return "GGML_OP_SET";
-        case GGML_OP_CPY: return "GGML_OP_CPY";
-        case GGML_OP_CONT: return "GGML_OP_CONT";
-        case GGML_OP_RESHAPE: return "GGML_OP_RESHAPE";
-        case GGML_OP_VIEW: return "GGML_OP_VIEW";
-        case GGML_OP_PERMUTE: return "GGML_OP_PERMUTE";
-        case GGML_OP_TRANSPOSE: return "GGML_OP_TRANSPOSE";
-        case GGML_OP_GET_ROWS: return "GGML_OP_GET_ROWS";
-        case GGML_OP_GET_ROWS_BACK: return "GGML_OP_GET_ROWS_BACK";
-        case GGML_OP_DIAG: return "GGML_OP_DIAG";
-        case GGML_OP_DIAG_MASK_INF: return "GGML_OP_DIAG_MASK_INF";
-        case GGML_OP_DIAG_MASK_ZERO: return "GGML_OP_DIAG_MASK_ZERO";
-        case GGML_OP_SOFT_MAX: return "GGML_OP_SOFT_MAX";
-        case GGML_OP_SOFT_MAX_BACK: return "GGML_OP_SOFT_MAX_BACK";
-        case GGML_OP_ROPE: return "GGML_OP_ROPE";
-        case GGML_OP_ROPE_BACK: return "GGML_OP_ROPE_BACK";
-        case GGML_OP_CLAMP: return "GGML_OP_CLAMP";
-        case GGML_OP_CONV_TRANSPOSE_1D: return "GGML_OP_CONV_TRANSPOSE_1D";
-        case GGML_OP_IM2COL: return "GGML_OP_IM2COL";
-        case GGML_OP_CONV_TRANSPOSE_2D: return "GGML_OP_CONV_TRANSPOSE_2D";
-        case GGML_OP_POOL_1D: return "GGML_OP_POOL_1D";
-        case GGML_OP_POOL_2D: return "GGML_OP_POOL_2D";
-        case GGML_OP_UPSCALE: return "GGML_OP_UPSCALE";
-        case GGML_OP_PAD: return "GGML_OP_PAD";
-        case GGML_OP_ARANGE: return "GGML_OP_ARANGE";
-        case GGML_OP_TIMESTEP_EMBEDDING: return "GGML_OP_TIMESTEP_EMBEDDING";
-        case GGML_OP_ARGSORT: return "GGML_OP_ARGSORT";
-        case GGML_OP_LEAKY_RELU: return "GGML_OP_LEAKY_RELU";
-        // case GGML_OP_FLASH_ATTN: return "GGML_OP_FLASH_ATTN";
-        // case GGML_OP_FLASH_ATTN_EXT: return "GGML_OP_FLASH_ATTN_EXT";
-        // case GGML_OP_FLASH_FF: return "GGML_OP_FLASH_FF";
-        // case GGML_OP_FLASH_ATTN_BACK: return "GGML_OP_FLASH_ATTN_BACK";
-        case GGML_OP_SSM_CONV: return "GGML_OP_SSM_CONV";
-        case GGML_OP_SSM_SCAN: return "GGML_OP_SSM_SCAN";
-        case GGML_OP_WIN_PART: return "GGML_OP_WIN_PART";
-        case GGML_OP_WIN_UNPART: return "GGML_OP_WIN_UNPART";
-        case GGML_OP_GET_REL_POS: return "GGML_OP_GET_REL_POS";
-        case GGML_OP_ADD_REL_POS: return "GGML_OP_ADD_REL_POS";
-        case GGML_OP_UNARY: return "GGML_OP_UNARY";
-        case GGML_OP_MAP_UNARY: return "GGML_OP_MAP_UNARY";
-        case GGML_OP_MAP_BINARY: return "GGML_OP_MAP_BINARY";
-        case GGML_OP_MAP_CUSTOM1_F32: return "GGML_OP_MAP_CUSTOM1_F32";
-        case GGML_OP_MAP_CUSTOM2_F32: return "GGML_OP_MAP_CUSTOM2_F32";
-        case GGML_OP_MAP_CUSTOM3_F32: return "GGML_OP_MAP_CUSTOM3_F32";
-        case GGML_OP_MAP_CUSTOM1: return "GGML_OP_MAP_CUSTOM1";
-        case GGML_OP_MAP_CUSTOM2: return "GGML_OP_MAP_CUSTOM2";
-        case GGML_OP_MAP_CUSTOM3: return "GGML_OP_MAP_CUSTOM3";
-        case GGML_OP_CROSS_ENTROPY_LOSS: return "GGML_OP_CROSS_ENTROPY_LOSS";
-        case GGML_OP_CROSS_ENTROPY_LOSS_BACK: return "GGML_OP_CROSS_ENTROPY_LOSS_BACK";
-        case GGML_OP_COUNT: return "GGML_OP_COUNT";
-        default: return "UNKNOWN_OP";
-    }
-}
-
 static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
     GGML_ASSERT(params);
 
     if (tensor->op == GGML_OP_NONE || ggml_is_empty(tensor)) {
         return;
     }
-    double start_time = omp_get_wtime();
+
     switch (tensor->op) {
         case GGML_OP_DUP:
             {
@@ -17062,17 +16819,6 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
                 GGML_ASSERT(false);
             } break;
     }
-    double end_time = omp_get_wtime();
-    double duration = (end_time - start_time) * 1000;
-    // #pragma omp critical
-    // {
-    printf("=======================================\n");
-    printf("%s\n", tensor->name);
-    printf("%s\n", ggml_op_to_string(tensor->op));
-    printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
-    printf("Execution time: %f ms\n", duration);
-    printf("=======================================\n\n");
-    // }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -18919,7 +18665,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         struct ggml_tensor * node = cgraph->nodes[node_n];
 
         ggml_compute_forward(&params, node);
-        // printf("%s\n", node->name);
+
         if (state->ith == 0 && cplan->abort_callback && cplan->abort_callback(cplan->abort_callback_data)) {
             state->shared->ec = GGML_STATUS_ABORTED;
         }
@@ -18969,7 +18715,6 @@ enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cpl
                 .ith    = omp_get_thread_num(),
                 .shared = &state_shared,
             };
-            // 여기에서 thread연산이 시작됨.
             ggml_graph_compute_thread(&worker);
         }
     } else {

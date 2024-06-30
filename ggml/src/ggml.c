@@ -12219,15 +12219,15 @@ static void ggml_compute_forward_mul_mat(
                     goto UseGgmlGemm1;
         clock_t end_time = clock();
         double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
-        #pragma omp critical
-        {
-        printf("=======================================\n");
-        printf("%s\n", dst->name);
-        printf("%dth thread among %d threads\n", ith, nth);
-        printf("Execution time: %f ms\n", duration);
-        printf("=======================================\n\n");
-        }
-        return;
+        // #pragma omp critical
+        // {
+        // printf("=======================================\n");
+        // printf("%s\n", dst->name);
+        // printf("%dth thread among %d threads\n", ith, nth);
+        // printf("Execution time: %f ms\n", duration);
+        // printf("=======================================\n\n");
+        // }
+        // return;
     }
 UseGgmlGemm1:;
 #endif
@@ -12365,18 +12365,18 @@ UseGgmlGemm1:;
                     goto UseGgmlGemm2;
             }
 
-        clock_t end_time = clock();
-        double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
-        #pragma omp critical
-        {        
-        printf("=======================================\n");
-        printf("%s\n", dst->name);
-        printf("%dth thread among %d threads\n", ith, nth);
-        printf("Execution time: %f ms\n", duration);
-        printf("=======================================\n\n");
-        }
-        // matmul 연산은 여기서 끝, 아래 코드는 llamafil_sgemm 함수가 작동을 못했을 경우 내려간다.
-        return;
+        // clock_t end_time = clock();
+        // double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
+        // #pragma omp critical
+        // {        
+        // printf("=======================================\n");
+        // printf("%s\n", dst->name);
+        // printf("%dth thread among %d threads\n", ith, nth);
+        // printf("Execution time: %f ms\n", duration);
+        // printf("=======================================\n\n");
+        // }
+        // // matmul 연산은 여기서 끝, 아래 코드는 llamafil_sgemm 함수가 작동을 못했을 경우 내려간다.
+        // return;
     }
 UseGgmlGemm2:;
 #endif
@@ -12446,14 +12446,14 @@ UseGgmlGemm2:;
 
     clock_t end_time = clock();
     double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
-    #pragma omp critical
-    {
-    printf("=======================================\n");
-    printf("%s\n", dst->name);
-    printf("%dth thread among %d threads\n", ith, nth);
-    printf("Execution time: %f ms\n", duration);
-    printf("=======================================\n\n");
-    }
+    // #pragma omp critical
+    // {
+    // printf("=======================================\n");
+    // printf("%s\n", dst->name);
+    // printf("%dth thread among %d threads\n", ith, nth);
+    // printf("Execution time: %f ms\n", duration);
+    // printf("=======================================\n\n");
+    // }
 }
 
 // ggml_compute_forward_mul_mat_id
@@ -16736,7 +16736,7 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     if (tensor->op == GGML_OP_NONE || ggml_is_empty(tensor)) {
         return;
     }
-    // clock_t start_time = clock();
+    double start_time = omp_get_wtime();
     switch (tensor->op) {
         case GGML_OP_DUP:
             {
@@ -17062,17 +17062,17 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
                 GGML_ASSERT(false);
             } break;
     }
-    // clock_t end_time = clock();
-    // double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
-    // #pragma omp critical
-    // {
-    // printf("=======================================\n");
-    // printf("%s\n", tensor->name);
-    // printf("%s\n", ggml_op_to_string(tensor->op));
-    // printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
-    // printf("Execution time: %f ms\n", duration);
-    // printf("=======================================\n\n");
-    // }
+    double end_time = omp_get_wtime();
+    double duration = (end_time - start_time) * 1000;
+    #pragma omp critical
+    {
+    printf("=======================================\n");
+    printf("%s\n", tensor->name);
+    printf("%s\n", ggml_op_to_string(tensor->op));
+    printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
+    printf("Execution time: %f ms\n", duration);
+    printf("=======================================\n\n");
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

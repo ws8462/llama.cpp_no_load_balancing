@@ -16566,7 +16566,7 @@ const char* ggml_op_to_string(enum ggml_op op) {
         case GGML_OP_CROSS_ENTROPY_LOSS_BACK: return "GGML_OP_CROSS_ENTROPY_LOSS_BACK";
         case GGML_OP_COUNT: return "GGML_OP_COUNT";
         default: return "UNKNOWN_OP";
-
+    }
 static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
     GGML_ASSERT(params);
 

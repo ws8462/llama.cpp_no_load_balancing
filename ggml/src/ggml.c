@@ -16901,6 +16901,8 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
                 GGML_ASSERT(false);
             } break;
     }
+    #pragma omp critical
+    {
     clock_t end_time = clock();
     double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
     printf("=======================================\n");
@@ -16909,6 +16911,7 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
     printf("Execution time: %f ms\n", duration);
     printf("=======================================\n\n");
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

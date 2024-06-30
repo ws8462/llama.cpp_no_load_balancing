@@ -12217,13 +12217,16 @@ static void ggml_compute_forward_mul_mat(
                                      dst->type))
                     // 만약 matmul을 시도하다가 error가 발생하면, src1의 type을 vec_dot_type으로 바꿔주는 code를 찾아가게 된다. (바로 아래)
                     goto UseGgmlGemm1;
-        printf("=======================================\n");
         clock_t end_time = clock();
         double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
+        #pragma omp critical
+        {
+        printf("=======================================\n");
         printf("%s\n", dst->name);
         printf("%dth thread among %d threads\n", ith, nth);
         printf("Execution time: %f ms\n", duration);
         printf("=======================================\n\n");
+        }
         return;
     }
 UseGgmlGemm1:;
@@ -12362,13 +12365,16 @@ UseGgmlGemm1:;
                     goto UseGgmlGemm2;
             }
 
-        printf("=======================================\n");
         clock_t end_time = clock();
         double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
+        #pragma omp critical
+        {        
+        printf("=======================================\n");
         printf("%s\n", dst->name);
         printf("%dth thread among %d threads\n", ith, nth);
         printf("Execution time: %f ms\n", duration);
         printf("=======================================\n\n");
+        }
         // matmul 연산은 여기서 끝, 아래 코드는 llamafil_sgemm 함수가 작동을 못했을 경우 내려간다.
         return;
     }
@@ -12437,13 +12443,17 @@ UseGgmlGemm2:;
 
         current_chunk = atomic_fetch_add(&params->shared->current_chunk, 1);
     }
-    printf("=======================================\n");
+
     clock_t end_time = clock();
     double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
+    #pragma omp critical
+    {
+    printf("=======================================\n");
     printf("%s\n", dst->name);
     printf("%dth thread among %d threads\n", ith, nth);
     printf("Execution time: %f ms\n", duration);
     printf("=======================================\n\n");
+    }
 }
 
 // ggml_compute_forward_mul_mat_id

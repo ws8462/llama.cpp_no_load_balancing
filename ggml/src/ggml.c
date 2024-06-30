@@ -16567,13 +16567,14 @@ const char* ggml_op_to_string(enum ggml_op op) {
         case GGML_OP_COUNT: return "GGML_OP_COUNT";
         default: return "UNKNOWN_OP";
     }
+}
 static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
     GGML_ASSERT(params);
-
+    double start_time = omp_get_wtime();
     if (tensor->op == GGML_OP_NONE || ggml_is_empty(tensor)) {
         return;
     }
-    double start_time = omp_get_wtime();
+
     switch (tensor->op) {
         case GGML_OP_DUP:
             {

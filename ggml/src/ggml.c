@@ -16570,7 +16570,7 @@ const char* ggml_op_to_string(enum ggml_op op) {
 }
 static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
     GGML_ASSERT(params);
-    // double start_time = omp_get_wtime();
+    double start_time = omp_get_wtime();
     if (tensor->op == GGML_OP_NONE || ggml_is_empty(tensor)) {
         return;
     }
@@ -16900,17 +16900,17 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
                 GGML_ASSERT(false);
             } break;
     }
-    // double end_time = omp_get_wtime();
-    // double duration = (end_time - start_time) * 1000;
-    // #pragma omp critical
-    // {
-    // printf("=======================================\n");
-    // printf("%s\n", tensor->name);
-    // printf("%s\n", ggml_op_to_string(tensor->op));
-    // printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
-    // printf("Execution time: %f ms\n", duration);
-    // printf("=======================================\n\n");
-    // }
+    double end_time = omp_get_wtime();
+    double duration = (end_time - start_time) * 1000;
+    #pragma omp critical
+    {
+    printf("=======================================\n");
+    printf("%s\n", tensor->name);
+    printf("%s\n", ggml_op_to_string(tensor->op));
+    printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
+    printf("Execution time: %f ms\n", duration);
+    printf("=======================================\n\n");
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

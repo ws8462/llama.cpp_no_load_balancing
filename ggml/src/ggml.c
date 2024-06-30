@@ -12437,6 +12437,13 @@ UseGgmlGemm2:;
 
         current_chunk = atomic_fetch_add(&params->shared->current_chunk, 1);
     }
+    printf("=======================================\n");
+    clock_t end_time = clock();
+    double duration = (double)(end_time - start_time) * 1000.0 / CLOCKS_PER_SEC;
+    printf("%s\n", dst->name);
+    printf("%dth thread among %d threads\n", ith, nth);
+    printf("Execution time: %f ms\n", duration);
+    printf("=======================================\n\n");
 }
 
 // ggml_compute_forward_mul_mat_id

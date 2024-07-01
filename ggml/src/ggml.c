@@ -25,7 +25,7 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <signal.h>
-#include <sched.h>
+#include <sys/syscall.h>
 #if defined(__gnu_linux__)
 #include <syscall.h>
 #endif
@@ -16569,6 +16569,17 @@ const char* ggml_op_to_string(enum ggml_op op) {
         default: return "UNKNOWN_OP";
     }
 }
+
+int getCpuId() {
+
+    unsigned cpu;
+    if (syscall(__NR_getcpu, &cpu, NULL, NULL) < 0) {
+        return -1;
+    } else {
+        return (int) cpu;
+    }
+}
+
 static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
     GGML_ASSERT(params);
     double start_time = omp_get_wtime();
@@ -16909,7 +16920,7 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     printf("%s\n", tensor->name);
     printf("%s\n", ggml_op_to_string(tensor->op));
     printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
-    printf("current_core = %d\n", sched_getcpu());
+    printf("current_core = %d\n", getCpuId());
     printf("Execution time: %f ms\n", duration);
     printf("=======================================\n\n");
     }

@@ -25,6 +25,8 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <signal.h>
+#include <sys/syscall.h>
+#include <sched.h>
 #if defined(__gnu_linux__)
 #include <syscall.h>
 #endif
@@ -16569,42 +16571,14 @@ const char* ggml_op_to_string(enum ggml_op op) {
     }
 }
 
-int get_cpuid() {
-    FILE *file = fopen("/proc/self/stat", "r");
-    if (!file) {
-        perror("fopen");
-        return EXIT_FAILURE;
+int getCpuId() {
+
+    unsigned cpu;
+    if (syscall(__NR_getcpu, &cpu, NULL, NULL) < 0) {
+        return -1;
+    } else {
+        return (int) cpu;
     }
-
-    char buffer[4096];
-    size_t bytesRead = fread(buffer, 1, sizeof(buffer) - 1, file);
-    if (bytesRead == 0) {
-        perror("fread");
-        fclose(file);
-        return EXIT_FAILURE;
-    }
-
-    buffer[bytesRead] = '\0'; // Null-terminate the string
-
-    fclose(file);
-
-    char *token;
-    int count = 0;
-
-    printf("%s\n", buffer);
-
-    // Use strtok to split the string by spaces
-    token = strtok(buffer, " ");
-    
-    // Iterate through the tokens
-    while (token != NULL) {
-        count++;
-        if (count == 39) {
-            return atoi(token);
-        }
-        token = strtok(NULL, " ");
-    }
-    return -1;
 }
 
 static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
@@ -16947,7 +16921,7 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     printf("%s\n", tensor->name);
     printf("%s\n", ggml_op_to_string(tensor->op));
     printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
-    printf("current cpuid = %d\n", get_cpuid());
+    printf("current_core = %d\n", getCpuId());
     printf("Execution time: %f ms\n", duration);
     printf("=======================================\n\n");
     }

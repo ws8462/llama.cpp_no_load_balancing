@@ -25,6 +25,8 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <signal.h>
+#include <sys/syscall.h>
+#include <sched.h>
 #if defined(__gnu_linux__)
 #include <syscall.h>
 #endif

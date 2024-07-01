@@ -16570,22 +16570,40 @@ const char* ggml_op_to_string(enum ggml_op op) {
 }
 
 int get_cpu_id() {
-    FILE *file = fopen("/proc/self/stat", "r");
-    if (!file) {
+    pid_t tid = syscall(SYS_gettid);
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/self/task/%d/stat", tid);
+
+    FILE *fp = fopen(path, "r");
+    if (fp == NULL) {
         perror("fopen");
         return -1;
     }
 
-    int cpu_id = -1;
-    // Skip the first 38 fields
-    for (int i = 0; i < 38; i++) {
-        fscanf(file, "%*s");
+    char buffer[256];
+    if (fgets(buffer, sizeof(buffer), fp) == NULL) {
+        perror("fgets");
+        fclose(fp);
+        return -1;
+    }
+    fclose(fp);
+
+    char *token;
+    int count = 0;
+
+    // Use strtok to split the string by spaces
+    token = strtok(buffer, " ");
+    
+    // Iterate through the tokens
+    while (token != NULL) {
+        count++;
+        if (count == 39) {
+            break;
+        }
+        token = strtok(NULL, " ");
     }
 
-    // Read the 39th field which is the CPU ID
-    fscanf(file, "%d", &cpu_id);
-    fclose(file);
-    return cpu_id;
+    return atoi(token);
 }
 
 static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
@@ -16929,6 +16947,7 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     printf("%s\n", ggml_op_to_string(tensor->op));
     printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
     printf("current_core = %d\n", get_cpu_id());
+    // printf("%d\n", get_cpu_id());
     printf("Execution time: %f ms\n", duration);
     printf("=======================================\n\n");
     }

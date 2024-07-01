@@ -16909,7 +16909,7 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     printf("%s\n", tensor->name);
     printf("%s\n", ggml_op_to_string(tensor->op));
     printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
-    // printf("current_core = %d\n", sched_getcpu());
+    printf("current_core = %d\n", sched_getcpu());
     printf("Execution time: %f ms\n", duration);
     printf("=======================================\n\n");
     }

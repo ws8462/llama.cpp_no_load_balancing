@@ -4,7 +4,7 @@
 #include "ggml-impl.h"
 #include "ggml-quants.h"
 #include "ggml.h"
-#include <sched.h>
+
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
@@ -25,8 +25,6 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <signal.h>
-#include <sys/syscall.h>
-#include <sched.h>
 #if defined(__gnu_linux__)
 #include <syscall.h>
 #endif
@@ -16488,92 +16486,10 @@ static void ggml_compute_forward_cross_entropy_loss_back(
 }
 
 /////////////////////////////////
-const char* ggml_op_to_string(enum ggml_op op) {
-    switch (op) {
-        case GGML_OP_NONE: return "GGML_OP_NONE";
-        case GGML_OP_DUP: return "GGML_OP_DUP";
-        case GGML_OP_ADD: return "GGML_OP_ADD";
-        case GGML_OP_ADD1: return "GGML_OP_ADD1";
-        case GGML_OP_ACC: return "GGML_OP_ACC";
-        case GGML_OP_SUB: return "GGML_OP_SUB";
-        case GGML_OP_MUL: return "GGML_OP_MUL";
-        case GGML_OP_DIV: return "GGML_OP_DIV";
-        case GGML_OP_SQR: return "GGML_OP_SQR";
-        case GGML_OP_SQRT: return "GGML_OP_SQRT";
-        case GGML_OP_LOG: return "GGML_OP_LOG";
-        case GGML_OP_SUM: return "GGML_OP_SUM";
-        case GGML_OP_SUM_ROWS: return "GGML_OP_SUM_ROWS";
-        case GGML_OP_MEAN: return "GGML_OP_MEAN";
-        case GGML_OP_ARGMAX: return "GGML_OP_ARGMAX";
-        case GGML_OP_REPEAT: return "GGML_OP_REPEAT";
-        case GGML_OP_REPEAT_BACK: return "GGML_OP_REPEAT_BACK";
-        case GGML_OP_CONCAT: return "GGML_OP_CONCAT";
-        case GGML_OP_SILU_BACK: return "GGML_OP_SILU_BACK";
-        case GGML_OP_NORM: return "GGML_OP_NORM";
-        case GGML_OP_RMS_NORM: return "GGML_OP_RMS_NORM";
-        case GGML_OP_RMS_NORM_BACK: return "GGML_OP_RMS_NORM_BACK";
-        case GGML_OP_GROUP_NORM: return "GGML_OP_GROUP_NORM";
-        case GGML_OP_MUL_MAT: return "GGML_OP_MUL_MAT";
-        case GGML_OP_MUL_MAT_ID: return "GGML_OP_MUL_MAT_ID";
-        case GGML_OP_OUT_PROD: return "GGML_OP_OUT_PROD";
-        case GGML_OP_SCALE: return "GGML_OP_SCALE";
-        case GGML_OP_SET: return "GGML_OP_SET";
-        case GGML_OP_CPY: return "GGML_OP_CPY";
-        case GGML_OP_CONT: return "GGML_OP_CONT";
-        case GGML_OP_RESHAPE: return "GGML_OP_RESHAPE";
-        case GGML_OP_VIEW: return "GGML_OP_VIEW";
-        case GGML_OP_PERMUTE: return "GGML_OP_PERMUTE";
-        case GGML_OP_TRANSPOSE: return "GGML_OP_TRANSPOSE";
-        case GGML_OP_GET_ROWS: return "GGML_OP_GET_ROWS";
-        case GGML_OP_GET_ROWS_BACK: return "GGML_OP_GET_ROWS_BACK";
-        case GGML_OP_DIAG: return "GGML_OP_DIAG";
-        case GGML_OP_DIAG_MASK_INF: return "GGML_OP_DIAG_MASK_INF";
-        case GGML_OP_DIAG_MASK_ZERO: return "GGML_OP_DIAG_MASK_ZERO";
-        case GGML_OP_SOFT_MAX: return "GGML_OP_SOFT_MAX";
-        case GGML_OP_SOFT_MAX_BACK: return "GGML_OP_SOFT_MAX_BACK";
-        case GGML_OP_ROPE: return "GGML_OP_ROPE";
-        case GGML_OP_ROPE_BACK: return "GGML_OP_ROPE_BACK";
-        case GGML_OP_CLAMP: return "GGML_OP_CLAMP";
-        case GGML_OP_CONV_TRANSPOSE_1D: return "GGML_OP_CONV_TRANSPOSE_1D";
-        case GGML_OP_IM2COL: return "GGML_OP_IM2COL";
-        case GGML_OP_CONV_TRANSPOSE_2D: return "GGML_OP_CONV_TRANSPOSE_2D";
-        case GGML_OP_POOL_1D: return "GGML_OP_POOL_1D";
-        case GGML_OP_POOL_2D: return "GGML_OP_POOL_2D";
-        case GGML_OP_UPSCALE: return "GGML_OP_UPSCALE";
-        case GGML_OP_PAD: return "GGML_OP_PAD";
-        case GGML_OP_ARANGE: return "GGML_OP_ARANGE";
-        case GGML_OP_TIMESTEP_EMBEDDING: return "GGML_OP_TIMESTEP_EMBEDDING";
-        case GGML_OP_ARGSORT: return "GGML_OP_ARGSORT";
-        case GGML_OP_LEAKY_RELU: return "GGML_OP_LEAKY_RELU";
-        // case GGML_OP_FLASH_ATTN: return "GGML_OP_FLASH_ATTN";
-        // case GGML_OP_FLASH_ATTN_EXT: return "GGML_OP_FLASH_ATTN_EXT";
-        // case GGML_OP_FLASH_FF: return "GGML_OP_FLASH_FF";
-        // case GGML_OP_FLASH_ATTN_BACK: return "GGML_OP_FLASH_ATTN_BACK";
-        case GGML_OP_SSM_CONV: return "GGML_OP_SSM_CONV";
-        case GGML_OP_SSM_SCAN: return "GGML_OP_SSM_SCAN";
-        case GGML_OP_WIN_PART: return "GGML_OP_WIN_PART";
-        case GGML_OP_WIN_UNPART: return "GGML_OP_WIN_UNPART";
-        case GGML_OP_GET_REL_POS: return "GGML_OP_GET_REL_POS";
-        case GGML_OP_ADD_REL_POS: return "GGML_OP_ADD_REL_POS";
-        case GGML_OP_UNARY: return "GGML_OP_UNARY";
-        case GGML_OP_MAP_UNARY: return "GGML_OP_MAP_UNARY";
-        case GGML_OP_MAP_BINARY: return "GGML_OP_MAP_BINARY";
-        case GGML_OP_MAP_CUSTOM1_F32: return "GGML_OP_MAP_CUSTOM1_F32";
-        case GGML_OP_MAP_CUSTOM2_F32: return "GGML_OP_MAP_CUSTOM2_F32";
-        case GGML_OP_MAP_CUSTOM3_F32: return "GGML_OP_MAP_CUSTOM3_F32";
-        case GGML_OP_MAP_CUSTOM1: return "GGML_OP_MAP_CUSTOM1";
-        case GGML_OP_MAP_CUSTOM2: return "GGML_OP_MAP_CUSTOM2";
-        case GGML_OP_MAP_CUSTOM3: return "GGML_OP_MAP_CUSTOM3";
-        case GGML_OP_CROSS_ENTROPY_LOSS: return "GGML_OP_CROSS_ENTROPY_LOSS";
-        case GGML_OP_CROSS_ENTROPY_LOSS_BACK: return "GGML_OP_CROSS_ENTROPY_LOSS_BACK";
-        case GGML_OP_COUNT: return "GGML_OP_COUNT";
-        default: return "UNKNOWN_OP";
-    }
-}
 
 static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
     GGML_ASSERT(params);
-    double start_time = omp_get_wtime();
+
     if (tensor->op == GGML_OP_NONE || ggml_is_empty(tensor)) {
         return;
     }
@@ -16902,20 +16818,6 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
             {
                 GGML_ASSERT(false);
             } break;
-    }
-    double end_time = omp_get_wtime();
-    double duration = (end_time - start_time) * 1000;
-    unsigned cpu, node;
-    syscall(__NR_getcpu, &cpu, &node, NULL);
-    #pragma omp critical
-    {
-    printf("=======================================\n");
-    printf("%s\n", tensor->name);
-    printf("%s\n", ggml_op_to_string(tensor->op));
-    printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
-    printf("current_core = %d\n", cpu);
-    printf("Execution time: %f ms\n", duration);
-    printf("=======================================\n\n");
     }
 }
 

@@ -16591,6 +16591,8 @@ int get_cpuid() {
     char *token;
     int count = 0;
 
+    printf("%s\n", buffer);
+
     // Use strtok to split the string by spaces
     token = strtok(buffer, " ");
     
@@ -16939,14 +16941,13 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     }
     double end_time = omp_get_wtime();
     double duration = (end_time - start_time) * 1000;
-    int cpuid = get_cpuid();
     #pragma omp critical
     {
     printf("=======================================\n");
     printf("%s\n", tensor->name);
     printf("%s\n", ggml_op_to_string(tensor->op));
     printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
-    printf("current cpuid = %d\n", cpuid);
+    printf("current cpuid = %d\n", get_cpuid());
     printf("Execution time: %f ms\n", duration);
     printf("=======================================\n\n");
     }

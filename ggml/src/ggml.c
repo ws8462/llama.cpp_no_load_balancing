@@ -25,13 +25,13 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <signal.h>
+#include <sched.h>
 #if defined(__gnu_linux__)
 #include <syscall.h>
 #endif
 
 #ifdef GGML_USE_OPENMP
 #include <omp.h>
-#include <sched.h>
 #endif
 
 #ifdef GGML_USE_METAL

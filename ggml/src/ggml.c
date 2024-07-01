@@ -16570,7 +16570,7 @@ const char* ggml_op_to_string(enum ggml_op op) {
 }
 
 int get_cpu_id() {
-    pid_t tid = syscall(SYS_gettid);
+    pid_t tid = syscall(__NR_gettid);;
     char path[64];
     snprintf(path, sizeof(path), "/proc/self/task/%d/stat", tid);
 

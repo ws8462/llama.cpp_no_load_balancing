@@ -16485,6 +16485,13 @@ static void ggml_compute_forward_cross_entropy_loss_back(
     }
 }
 
+#include <unistd.h>
+#include <sys/syscall.h>
+
+int my_getcpu(unsigned *cpu, unsigned *node, void *cache) {
+    return syscall(SYS_getcpu, cpu, node, cache);
+}
+
 /////////////////////////////////
 const char* ggml_op_to_string(enum ggml_op op) {
     switch (op) {
@@ -16912,9 +16919,8 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
 
     unsigned cpu, node;
-    syscall(__NR_getcpu, &cpu, &node, NULL);
-    printf("CPU ID: %u\n", cpu);
-
+    my_getcpu(&cpu, &node, NULL);
+    printf("Current cpu = %u\n", cpu);
 
     printf("Execution time: %f ms\n", duration);
     printf("=======================================\n\n");

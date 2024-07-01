@@ -16569,41 +16569,40 @@ const char* ggml_op_to_string(enum ggml_op op) {
     }
 }
 
-int get_cpu_id() {
-    pid_t tid = syscall(SYS_gettid);
-    char path[64];
-    snprintf(path, sizeof(path), "/proc/self/task/%d/stat", tid);
-
-    FILE *fp = fopen(path, "r");
-    if (fp == NULL) {
+int get_cpuid() {
+    FILE *file = fopen("/proc/self/stat", "r");
+    if (!file) {
         perror("fopen");
-        return -1;
+        return EXIT_FAILURE;
     }
 
-    char buffer[256];
-    if (fgets(buffer, sizeof(buffer), fp) == NULL) {
-        perror("fgets");
-        fclose(fp);
-        return -1;
+    char buffer[4096];
+    size_t bytesRead = fread(buffer, 1, sizeof(buffer) - 1, file);
+    if (bytesRead == 0) {
+        perror("fread");
+        fclose(file);
+        return EXIT_FAILURE;
     }
-    fclose(fp);
+
+    buffer[bytesRead] = '\0'; // Null-terminate the string
+
+    fclose(file);
 
     char *token;
     int count = 0;
 
     // Use strtok to split the string by spaces
     token = strtok(buffer, " ");
-
+    
     // Iterate through the tokens
     while (token != NULL) {
         count++;
         if (count == 39) {
-            break;
+            return atoi(token);
         }
         token = strtok(NULL, " ");
     }
-
-    return atoi(token);
+    return -1;
 }
 
 static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
@@ -16940,13 +16939,14 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     }
     double end_time = omp_get_wtime();
     double duration = (end_time - start_time) * 1000;
+    int cpuid = get_cpuid();
     #pragma omp critical
     {
     printf("=======================================\n");
     printf("%s\n", tensor->name);
     printf("%s\n", ggml_op_to_string(tensor->op));
     printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
-    printf("current_core = %d\n", get_cpu_id());
+    printf("current cpuid = %d\n", cpuid);
     printf("Execution time: %f ms\n", duration);
     printf("=======================================\n\n");
     }

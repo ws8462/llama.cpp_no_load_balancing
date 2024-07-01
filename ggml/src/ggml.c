@@ -16485,13 +16485,6 @@ static void ggml_compute_forward_cross_entropy_loss_back(
     }
 }
 
-#include <unistd.h>
-#include <sys/syscall.h>
-
-int my_getcpu(unsigned *cpu, unsigned *node, void *cache) {
-    return syscall(SYS_getcpu, cpu, node, cache);
-}
-
 /////////////////////////////////
 const char* ggml_op_to_string(enum ggml_op op) {
     switch (op) {
@@ -16576,6 +16569,42 @@ const char* ggml_op_to_string(enum ggml_op op) {
     }
 }
 
+int get_cpu_id() {
+    pid_t tid = syscall(SYS_gettid);
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/self/task/%d/stat", tid);
+
+    FILE *fp = fopen(path, "r");
+    if (fp == NULL) {
+        perror("fopen");
+        return -1;
+    }
+
+    char buffer[256];
+    if (fgets(buffer, sizeof(buffer), fp) == NULL) {
+        perror("fgets");
+        fclose(fp);
+        return -1;
+    }
+    fclose(fp);
+
+    char *token;
+    int count = 0;
+
+    // Use strtok to split the string by spaces
+    token = strtok(buffer, " ");
+
+    // Iterate through the tokens
+    while (token != NULL) {
+        count++;
+        if (count == 39) {
+            break;
+        }
+        token = strtok(NULL, " ");
+    }
+
+    return atoi(token);
+}
 
 static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
     GGML_ASSERT(params);
@@ -16917,11 +16946,7 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     printf("%s\n", tensor->name);
     printf("%s\n", ggml_op_to_string(tensor->op));
     printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
-
-    unsigned cpu;
-    syscall(__NR_getcpu, &cpu, NULL, NULL);
-    printf("Current cpu = %u\n", cpu);
-
+    printf("current_core = %d\n", get_cpu_id());
     printf("Execution time: %f ms\n", duration);
     printf("=======================================\n\n");
     }

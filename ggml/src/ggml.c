@@ -16918,8 +16918,8 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     printf("%s\n", ggml_op_to_string(tensor->op));
     printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
 
-    unsigned cpu, node;
-    my_getcpu(&cpu, &node, NULL);
+    unsigned cpu;
+    syscall(__NR_getcpu, &cpu, NULL, NULL);
     printf("Current cpu = %u\n", cpu);
 
     printf("Execution time: %f ms\n", duration);

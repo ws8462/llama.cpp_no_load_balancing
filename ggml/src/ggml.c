@@ -16903,14 +16903,13 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
     }
     double end_time = omp_get_wtime();
     double duration = (end_time - start_time) * 1000;
-    int core_id = sched_getcpu();
     #pragma omp critical
     {
     printf("=======================================\n");
     printf("%s\n", tensor->name);
     printf("%s\n", ggml_op_to_string(tensor->op));
     printf("%dth thread among %d threads\n", params->ith + 1, params->nth);
-    printf("current_core = %d\n", core_id);
+    printf("current_core = %d\n", sched_getcpu());
     printf("Execution time: %f ms\n", duration);
     printf("=======================================\n\n");
     }

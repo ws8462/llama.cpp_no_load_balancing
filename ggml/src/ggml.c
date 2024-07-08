@@ -18774,6 +18774,23 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         // Print the duration of the synchronization for this node
         unsigned cpu, node_;
         syscall(__NR_getcpu, &cpu, &node_, NULL);
+        
+        // CPU freq
+        char freqbuf[200];
+        FILE *freq = NULL;
+        long core_freq;
+        sprintf(freqbuf, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", cpu);
+        freq = fopen(freqbuf, "r");
+        fscanf(freq, "%ld", &core_freq);
+
+        // CPU util
+        char utilbuf[200];
+        FILE *util = NULL;
+        long core_util;
+        sprintf(utilbuf, "/sys/devices/system/cpu/cpu%d/online", cpu);
+        util = fopen(utilbuf, "r");
+        fscanf(util, "%d", &core_util);
+
         #pragma omp critical
         {
         printf("=======================================\n");
@@ -18784,8 +18801,11 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         printf("compute_duration: %f ms\n", compute_duration);
         printf("sync_duration: %f ms\n", sync_duration);
         printf("sum_of_duration: %f ms\n", compute_duration + sync_duration);
+        printf("cpu freq = %ld\n", core_freq);
+        printf("cpu util = %ld\n", core_util);
         printf("=======================================\n\n");
         }
+
 
         if (state->shared->ec != GGML_STATUS_SUCCESS) {
             break;

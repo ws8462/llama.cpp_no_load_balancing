@@ -12,6 +12,14 @@
 #include <alloca.h>
 #endif
 
+#include <sys/time.h>
+long gettime(void)
+{	
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    return tv.tv_sec*1000000+tv.tv_usec;
+}
+
 #include <assert.h>
 #include <errno.h>
 #include <time.h>
@@ -12162,6 +12170,7 @@ static void ggml_compute_forward_mul_mat(
 
     const bool src1_cont = ggml_is_contiguous(src1);
 
+    printf("ne01 = %d, ne11 = %d\n", ne01, ne11);
     if (src1_cont) {
         for (int64_t i13 = 0; i13 < ne13; i13++)
             for (int64_t i12 = 0; i12 < ne12; i12++)
@@ -18750,25 +18759,25 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         struct ggml_tensor * node = cgraph->nodes[node_n];
 
         // Record the start time before computation
+        
         double start_time = omp_get_wtime();
-
+        long long comp_start_unix_time = gettime();
         ggml_compute_forward(&params, node);
-
-        // Record the end time after computation
+        long long comp_end_unix_time = gettime();
         double end_time = omp_get_wtime();
+
         double compute_duration = (end_time - start_time) * 1000;
 
         if (state->ith == 0 && cplan->abort_callback && cplan->abort_callback(cplan->abort_callback_data)) {
             state->shared->ec = GGML_STATUS_ABORTED;
         }
 
-        // Record the time before synchronization
         double sync_start_time = omp_get_wtime();
-
+        long long sync_start_unix_time = gettime();
         ggml_barrier(state->shared);
-        
-        // Record the time after synchronization
+        long long sync_end_unix_time = gettime();
         double sync_end_time = omp_get_wtime();
+
         double sync_duration = (sync_end_time - sync_start_time) * 1000;
 
         // Print the duration of the synchronization for this node
@@ -18785,14 +18794,14 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         printf("compute_duration: %f ms\n", compute_duration);
         printf("sync_duration: %f ms\n", sync_duration);
         printf("sum_of_duration: %f ms\n", compute_duration + sync_duration);
-        printf("comp_start_unix_time: %ld\n", start_time);
-        printf("comp_end_unix_time: %ld\n", end_time);
-        printf("idle_start_unix_time: %ld\n", sync_start_time);
-        printf("idle_end_unix_time: %ld\n", sync_end_time);
+        printf("comp_start_unix_time: %lld\n", comp_start_unix_time);
+        printf("comp_end_unix_time: %lld\n", comp_end_unix_time);
+        printf("idle_start_unix_time: %lld\n", sync_start_unix_time);
+        printf("idle_end_unix_time: %lld\n", sync_end_unix_time);
+        printf("compute_duration_from_unix_time = %lld", comp_start_unix_time - comp_end_unix_time);
+        printf("sync_duration_from_unix_time = %lld", sync_start_unix_time - sync_end_unix_time);
         printf("=======================================\n\n");
         }
-
-
 
         if (state->shared->ec != GGML_STATUS_SUCCESS) {
             break;

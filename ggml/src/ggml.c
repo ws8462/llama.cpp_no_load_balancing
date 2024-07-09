@@ -18774,43 +18774,6 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         // Print the duration of the synchronization for this node
         unsigned cpu, node_;
         syscall(__NR_getcpu, &cpu, &node_, NULL);
-        
-        // CPU freq
-        FILE *buf=NULL;
-        long core_freq;
-        char strbuf[200];
-
-		sprintf(strbuf, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", cpu);
-		buf=fopen(strbuf, "r");
-
-        fscanf(buf,"%ld",&core_freq);
-        fclose(buf);
-
-        // CPU util
-        FILE *stat;
-        int j, sum;
-        long core_util;
-        static int last[10]={0,};
-        int current[10],util[10];
-        stat=fopen("/proc/stat","r");
-        fgets(strbuf,200,stat);
-	
-		sprintf(strbuf,"/sys/devices/system/cpu/cpu%d/online",cpu);
-		buf=NULL;
-		buf=fopen(strbuf,"r");
-		fscanf(buf,"%d",&j);
-		fclose(buf);
-		fscanf(stat,"%s",strbuf);
-		sum=0;
-		for(j=0;j<10;j++){
-			fscanf(stat,"%d",&current[j]);
-			util[j]=current[j]-last[j];
-			last[j]=current[j];
-			sum+=util[j];
-		}
-
-		core_util = (util[0]+util[1]+util[2]+util[5]+util[6]+util[7])*100/sum;
-	    fclose(stat);
 
         #pragma omp critical
         {

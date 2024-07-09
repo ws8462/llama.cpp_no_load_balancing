@@ -18798,8 +18798,8 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         printf("comp_end_unix_time: %lld\n", comp_end_unix_time);
         printf("idle_start_unix_time: %lld\n", sync_start_unix_time);
         printf("idle_end_unix_time: %lld\n", sync_end_unix_time);
-        printf("compute_duration_from_unix_time = %lld", comp_start_unix_time - comp_end_unix_time);
-        printf("sync_duration_from_unix_time = %lld", sync_start_unix_time - sync_end_unix_time);
+        printf("compute_duration_from_unix_time = %lld\n", comp_end_unix_time - comp_start_unix_time);
+        printf("sync_duration_from_unix_time = %lld\n", sync_end_unix_time - sync_start_unix_time);
         printf("=======================================\n\n");
         }
 

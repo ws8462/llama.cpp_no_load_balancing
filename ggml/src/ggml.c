@@ -18818,7 +18818,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         printf("=======================================\n");
         printf("%s\n", node->name);
         printf("%s\n", ggml_op_to_string(node->op));
-        printf("%dth thread among %d threads\n", state->ith + 1, state->shared->n_threads);
+        printf("%dth thread among %d threads\n", state->ith, state->shared->n_threads);
         printf("current_core = %d\n", cpu);
         printf("compute_duration: %f ms\n", compute_duration);
         printf("sync_duration: %f ms\n", sync_duration);

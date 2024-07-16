@@ -414,25 +414,20 @@ class tinyBLAS {
         int64_t start = duty * ith;
         int64_t end = start + duty;
         // Load Balancing 
-        int64_t little0_duty = tiles * 0.054784093;
-        int64_t little1to3_duty = tiles * 0.061746436;
+        int64_t little_duty = tiles * 0.054784093;
         int64_t mid_duty = tiles * 0.159393205;
-        int64_t big_duty = tiles - (little0_duty * 1 + little1to3_duty * 3 + mid_duty * 3);
+        int64_t big_duty = tiles - 4 * little_duty - 3 * mid_duty;
 
-        if (ith == 0){
-            start = little0_duty * ith;
-            end = start + little0_duty;
-        }
         if(ith < 4) {
-            start = little0_duty * 1 + little1to3_duty * (ith - 1);
-            end = start + little1to3_duty;
+            start = little_duty * ith;
+            end = start + little_duty;
         }
         else if(ith < 7) {
-            start = little0_duty * 1 + little1to3_duty * 3 + mid_duty * (ith - 4);
+            start = little_duty * 4 + mid_duty * (ith - 4);
             end = start + mid_duty;
         }
         else {
-            start = little0_duty * 1 + little1to3_duty * 3 + mid_duty * 3;
+            start = little_duty * 4 + mid_duty * 3;
             end = start + big_duty;
         }
 

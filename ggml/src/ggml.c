@@ -18857,8 +18857,12 @@ enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cpl
 #ifdef GGML_USE_OPENMP
     if (n_threads > 1) {
         #pragma omp parallel num_threads(n_threads)
-        {
-            //sched_setaffinity( 0, sizeof( cpu_set_t ), &set );
+        {   
+            cpu_set_t set;
+            CPU_ZERO(&set);
+            CPU_SET(omp_get_thread_num(), &set);
+            sched_setaffinity(0, sizeof(cpu_set_t), &set);
+
             #pragma omp single
             {
                 // update the number of threads from the actual number of threads that we got from OpenMP
@@ -18870,10 +18874,6 @@ enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cpl
                 .ith    = omp_get_thread_num(),
                 .shared = &state_shared,
             };
-            cpu_set_t set;
-            CPU_ZERO( &set );
-            CPU_SET(omp_get_thread_num(), &set);
-            sched_setaffinity( 0, sizeof( cpu_set_t ), &set );
             ggml_graph_compute_thread(&worker);
         }
     } else {

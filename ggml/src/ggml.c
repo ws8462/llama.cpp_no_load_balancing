@@ -20,7 +20,6 @@ long gettime(void)
     return tv.tv_sec*1000000+tv.tv_usec;
 }
 
-
 #include <assert.h>
 #include <errno.h>
 #include <time.h>
@@ -79,7 +78,6 @@ typedef atomic_int atomic_bool;
 typedef atomic_int atomic_flag;
 
 #define ATOMIC_FLAG_INIT 0
-
 
 static void atomic_store(atomic_int * ptr, LONG val) {
     InterlockedExchange(ptr, val);
@@ -318,6 +316,39 @@ typedef double ggml_float;
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+#if defined(__ANDROID__)
+    #if defined(__x86_64__)
+    #define __NR_sched_setaffinity 203
+    #elif defined(__arm__)
+    #define __NR_sched_setaffinity 241
+    #elif defined(__aarch64__)
+    #define __NR_sched_setaffinity 122
+    #endif
+    #define CPU_SETSIZE 1024
+    #define __NCPUBITS (8 * sizeof (unsigned long))
+    typedef struct {
+        unsigned long __bits[CPU_SETSIZE / __NCPUBITS];
+    } cpu_set_t;
+
+    void CPU_ZERO(cpu_set_t *set) {
+        memset(set, 0, sizeof(cpu_set_t));
+    }
+
+    void CPU_SET(int cpu, cpu_set_t *set) {
+        set->__bits[cpu / __NCPUBITS] |= (1UL << (cpu % __NCPUBITS));
+    }
+
+    // Define sched_setaffinity using syscall
+    int sched_setaffinity(pid_t pid, size_t cpusetsize, const cpu_set_t *mask) {
+        int result = syscall(__NR_sched_setaffinity, pid, cpusetsize, mask);
+        if (result != 0) {
+            errno = result;
+            return -1;
+        }
+        return 0;
+    }
+#endif
 
 //
 // global data
@@ -12172,7 +12203,7 @@ static void ggml_compute_forward_mul_mat(
 
     const bool src1_cont = ggml_is_contiguous(src1);
 
-    printf("ne01 = %d, ne11 = %d\n", ne01, ne11);
+    //printf("ne01 = %d, ne11 = %d\n", ne01, ne11);
     if (src1_cont) {
         for (int64_t i13 = 0; i13 < ne13; i13++)
             for (int64_t i12 = 0; i12 < ne12; i12++)
@@ -18763,9 +18794,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         // Record the start time before computation
         
         double start_time = omp_get_wtime();
-        long long comp_start_unix_time = gettime();
         ggml_compute_forward(&params, node);
-        long long comp_end_unix_time = gettime();
         double end_time = omp_get_wtime();
 
         double compute_duration = (end_time - start_time) * 1000;
@@ -18775,9 +18804,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         }
 
         double sync_start_time = omp_get_wtime();
-        long long sync_start_unix_time = gettime();
         ggml_barrier(state->shared);
-        long long sync_end_unix_time = gettime();
         double sync_end_time = omp_get_wtime();
 
         double sync_duration = (sync_end_time - sync_start_time) * 1000;
@@ -18786,24 +18813,18 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         unsigned cpu, node_;
         syscall(__NR_getcpu, &cpu, &node_, NULL);
 
-
         #pragma omp critical
         {
-            printf("=======================================\n");
-            printf("%s\n", node->name);
-            printf("%s\n", ggml_op_to_string(node->op));
-            printf("%dth thread among %d threads\n", state->ith + 1, state->shared->n_threads);
-            printf("current_core = %d\n", cpu);
-            printf("compute_duration: %f ms\n", compute_duration);
-            printf("sync_duration: %f ms\n", sync_duration);
-            printf("sum_of_duration: %f ms\n", compute_duration + sync_duration);
-            printf("comp_start_unix_time: %lld\n", comp_start_unix_time);
-            printf("comp_end_unix_time: %lld\n", comp_end_unix_time);
-            printf("idle_start_unix_time: %lld\n", sync_start_unix_time);
-            printf("idle_end_unix_time: %lld\n", sync_end_unix_time);
-            printf("compute_duration_from_unix_time = %lld\n", comp_end_unix_time - comp_start_unix_time);
-            printf("sync_duration_from_unix_time = %lld\n", sync_end_unix_time - sync_start_unix_time);
-            printf("=======================================\n\n");
+        printf("=======================================\n");
+        printf("%s\n", node->name);
+        printf("%s\n", ggml_op_to_string(node->op));
+        printf("%dth thread among %d threads\n", state->ith + 1, state->shared->n_threads);
+        printf("current_core = %d\n", cpu);
+        printf("compute_duration: %f ms\n", compute_duration);
+        printf("sync_duration: %f ms\n", sync_duration);
+        printf("sum_of_duration: %f ms\n", compute_duration + sync_duration);
+        printf("\n");
+        printf("=======================================\n\n");
         }
 
         if (state->shared->ec != GGML_STATUS_SUCCESS) {
@@ -18812,15 +18833,6 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
     }
 
     return 0;
-}
-
-void set_affinity(int core_id) {
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(core_id, &cpuset);
-
-    pthread_t current_thread = pthread_self();
-    pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
 }
 
 enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cplan * cplan) {
@@ -18845,20 +18857,23 @@ enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cpl
 #ifdef GGML_USE_OPENMP
     if (n_threads > 1) {
         #pragma omp parallel num_threads(n_threads)
-        {   
-            set_affinity(omp_get_thread_num());
+        {
+            //sched_setaffinity( 0, sizeof( cpu_set_t ), &set );
             #pragma omp single
             {
                 // update the number of threads from the actual number of threads that we got from OpenMP
                 n_threads = omp_get_num_threads();
                 state_shared.n_threads = n_threads;
             }
-
             struct ggml_compute_state worker = {
                 .thrd   = 0,
                 .ith    = omp_get_thread_num(),
                 .shared = &state_shared,
             };
+            cpu_set_t set;
+            CPU_ZERO( &set );
+            CPU_SET(omp_get_thread_num(), &set);
+            sched_setaffinity( 0, sizeof( cpu_set_t ), &set );
             ggml_graph_compute_thread(&worker);
         }
     } else {

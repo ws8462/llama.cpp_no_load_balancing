@@ -413,8 +413,27 @@ class tinyBLAS {
         int64_t duty = (tiles + nth - 1) / nth;
         int64_t start = duty * ith;
         int64_t end = start + duty;
+        // Load Balancing 
+        int64_t little_duty = tiles * 0.054784093;
+        int64_t mid_duty = tiles * 0.159393205;
+        int64_t big_duty = tiles - 4 * little_duty - 3 * mid_duty;
+
+        if(ith < 4) {
+            start = little_duty * ith;
+            end = start + little_duty;
+        }
+        else if(ith < 7) {
+            start = little_duty * 4 + mid_duty * (ith - 4);
+            end = start + mid_duty;
+        }
+        else {
+            start = little_duty * 4 + mid_duty * 3;
+            end = start + big_duty;
+        }
+
         if (end > tiles)
             end = tiles;
+        
         for (int64_t job = start; job < end; ++job) {
             int64_t ii = m0 + job / xtiles * RM;
             int64_t jj = n0 + job % xtiles * RN;
@@ -957,17 +976,19 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
         return false;
 #endif
     }
-
+    
+    // 아마 여기서 matmul 진행이 되는 것 같다 (q8_0)
     case GGML_TYPE_Q8_0: {
         if (Btype != GGML_TYPE_Q8_0)
            return false;
 #if defined(__AVX2__) || defined(__AVX512F__) || defined(__AVX__)
+
         tinyBLAS_Q0_AVX<block_q8_0, block_q8_0, float> tb{
-            k, (const block_q8_0 *)A, lda,
-            (const block_q8_0 *)B, ldb,
-            (float *)C, ldc,
+            k, (const block_q8_0 *)A, lda,  // k = A, B tensor의 가로 양자 개수, A는 WEIGHT tensor, lda는 A의 가로 양자 개수
+            (const block_q8_0 *)B, ldb,     // B는 WEIGHT tensor, ldb는 B의 가로 양자 개수 (lda와 ldb는 같아야 한다)
+            (float *)C, ldc,                // C는 OUTPUT tensor, ldc는 C의 가로 양자 개수 (나중에 activation tensor가 될 친구)
             ith, nth};
-        tb.matmul(m, n);
+        tb.matmul(m, n);                    // m, n은 OUTPUT tensor의 shape
         return true;
 #elif defined(__ARM_FEATURE_DOTPROD)
         tinyBLAS_Q0_ARM<block_q8_0> tb{
@@ -986,6 +1007,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
         if (Btype != GGML_TYPE_Q8_0)
             return false;
 #if defined(__AVX2__) || defined(__AVX512F__) || defined(__AVX__)
+
         tinyBLAS_Q0_AVX<block_q4_0, block_q8_0, float> tb{
             k, (const block_q4_0 *)A, lda,
             (const block_q8_0 *)B, ldb,

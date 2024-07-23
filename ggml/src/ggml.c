@@ -18813,19 +18813,19 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         unsigned cpu, node_;
         syscall(__NR_getcpu, &cpu, &node_, NULL);
 
-        #pragma omp critical
-        {
-        printf("=======================================\n");
-        printf("%s\n", node->name);
-        printf("%s\n", ggml_op_to_string(node->op));
-        printf("%dth thread among %d threads\n", state->ith, state->shared->n_threads);
-        printf("current_core = %d\n", cpu);
-        printf("compute_duration: %f ms\n", compute_duration);
-        printf("sync_duration: %f ms\n", sync_duration);
-        printf("sum_of_duration: %f ms\n", compute_duration + sync_duration);
-        printf("\n");
-        printf("=======================================\n\n");
-        }
+        // #pragma omp critical
+        // {
+        // printf("=======================================\n");
+        // printf("%s\n", node->name);
+        // printf("%s\n", ggml_op_to_string(node->op));
+        // printf("%dth thread among %d threads\n", state->ith, state->shared->n_threads);
+        // printf("current_core = %d\n", cpu);
+        // printf("compute_duration: %f ms\n", compute_duration);
+        // printf("sync_duration: %f ms\n", sync_duration);
+        // printf("sum_of_duration: %f ms\n", compute_duration + sync_duration);
+        // printf("\n");
+        // printf("=======================================\n\n");
+        // }
 
         if (state->shared->ec != GGML_STATUS_SUCCESS) {
             break;
@@ -18869,10 +18869,11 @@ enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cpl
                 .ith    = omp_get_thread_num(),
                 .shared = &state_shared,
             };
-            cpu_set_t set;
-            CPU_ZERO(&set);
-            CPU_SET(omp_get_thread_num() + 4, &set);
-            sched_setaffinity(0, sizeof(cpu_set_t), &set);
+            // CPU AFFINITY 수정
+            // cpu_set_t set;
+            // CPU_ZERO(&set);
+            // CPU_SET(omp_get_thread_num() + 4, &set);
+            // sched_setaffinity(0, sizeof(cpu_set_t), &set);
             ggml_graph_compute_thread(&worker);
         }
     } else {

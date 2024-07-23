@@ -684,8 +684,8 @@ int main(int argc, char ** argv) {
 
             LOG("last: %s\n", LOG_TOKENS_TOSTR_PRETTY(ctx, ctx_sampling->prev).c_str());
             // 수정 ////////////////////////////////////////////
-            embd.push_back(id);
-            // embd = temp;
+            // embd.push_back(id);
+            embd = temp;
             ///////////////////////////////////////////////////
             // echo this to console
             input_echo = true;

@@ -683,9 +683,10 @@ int main(int argc, char ** argv) {
             llama_sampling_accept(ctx_sampling, ctx, id, /* apply_grammar= */ true);
 
             LOG("last: %s\n", LOG_TOKENS_TOSTR_PRETTY(ctx, ctx_sampling->prev).c_str());
-
-            // embd.push_back(id);
-            embd = temp;
+            // 수정 ////////////////////////////////////////////
+            embd.push_back(id);
+            // embd = temp;
+            ///////////////////////////////////////////////////
             // echo this to console
             input_echo = true;
 

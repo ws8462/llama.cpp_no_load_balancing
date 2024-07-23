@@ -18870,10 +18870,10 @@ enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cpl
                 .shared = &state_shared,
             };
             // CPU AFFINITY 수정
-            // cpu_set_t set;
-            // CPU_ZERO(&set);
-            // CPU_SET(omp_get_thread_num() + 4, &set);
-            // sched_setaffinity(0, sizeof(cpu_set_t), &set);
+            cpu_set_t set;
+            CPU_ZERO(&set);
+            CPU_SET(omp_get_thread_num() + 4, &set);
+            sched_setaffinity(0, sizeof(cpu_set_t), &set);
             ggml_graph_compute_thread(&worker);
         }
     } else {

@@ -416,17 +416,17 @@ class tinyBLAS {
         
         // Load Balancing with 4 Cores /////////////////////////////////////////////////////////
 
-        // int64_t mid_duty = tiles * 0.2;      // CPU #4 ~ #6
-        // int64_t big_duty = tiles - mid_duty * 3; // CPU #7
+        int64_t mid_duty = tiles * 0.2;      // CPU #4 ~ #6
+        int64_t big_duty = tiles - mid_duty * 3; // CPU #7
 
-        // if(ith < 3) {
-        //     start = mid_duty * ith;
-        //     end = start + mid_duty;
-        // }
-        // else {
-        //     start = mid_duty * 3;
-        //     end = start + big_duty;
-        // } /////////////////////////////////////////////////////////
+        if(ith < 3) {
+            start = mid_duty * ith;
+            end = start + mid_duty;
+        }
+        else {
+            start = mid_duty * 3;
+            end = start + big_duty;
+        } /////////////////////////////////////////////////////////
 
 
         if (end > tiles)

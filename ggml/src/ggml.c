@@ -18870,11 +18870,11 @@ enum ggml_status ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cpl
                 .shared = &state_shared,
             };
             // CPU AFFINITY ////////////////////////////////////////////////////////////////////
-            int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
-            cpu_set_t set;
-            CPU_ZERO(&set);
-            CPU_SET(omp_get_thread_num() + num_cores - n_threads, &set);
-            sched_setaffinity(0, sizeof(cpu_set_t), &set);
+            // int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
+            // cpu_set_t set;
+            // CPU_ZERO(&set);
+            // CPU_SET(omp_get_thread_num() + num_cores - n_threads, &set);
+            // sched_setaffinity(0, sizeof(cpu_set_t), &set);
             ////////////////////////////////////////////////////////////////////////////////////
             ggml_graph_compute_thread(&worker);
         }
